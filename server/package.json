@@ -1,0 +1,23 @@
+{
+  "name": "server",
+  "version": "1.0.0",
+  "description": "Diffie-Hellman Key Exchange Server",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js -p 3361"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mjdall/Diffie-Hellman-JS.git"
+  },
+  "author": "mjdall",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/mjdall/Diffie-Hellman-JS/issues"
+  },
+  "homepage": "https://github.com/mjdall/Diffie-Hellman-JS#readme",
+  "dependencies": {
+    "socket.io": "^2.3.0",
+    "yargs": "^14.0.0"
+  }
+}
