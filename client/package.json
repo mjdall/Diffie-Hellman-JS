@@ -4,7 +4,8 @@
   "description": "Diffie-Hellman Key Exchange Client",
   "main": "client.js",
   "scripts": {
-    "start": "node client.js -i localhost -p 3361"
+    "start": "node client.js -i localhost -p 3361",
+    "format": "prettier --write ./**/*.{js,jsx}"
   },
   "repository": {
     "type": "git",
@@ -20,5 +21,11 @@
     "socket.io": "^2.3.0",
     "socket.io-client": "^2.3.0",
     "yargs": "^14.0.0"
+  },
+  "prettier": {
+    "trailingComma": "all",
+    "tabWidth": 2,
+    "semi": true,
+    "singleQuote": true
   }
 }

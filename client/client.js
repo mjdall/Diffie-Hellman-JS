@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const asymetric = require('../asymetric');
+const symmetric = require('../symmetric');
 
 const yargs = require('yargs');
 
@@ -10,13 +10,14 @@ const options = yargs
     alias: 'port',
     describe: 'Port to connect to of the Diffie-Hellman server',
     type: 'int',
-    demandOption: true })
+    demandOption: true,
+  })
   .option('i', {
     alias: 'ipAddress',
     describe: 'IP Address of the server (default: localhost)',
     type: 'string',
-    demandOption: true })
-  .argv;
+    demandOption: true,
+  }).argv;
 
 let server = options.ipAddress + ':' + options.port.toString();
 
@@ -28,20 +29,25 @@ console.log('connecting to: ' + server);
 
 // socket io section
 const socket = require('socket.io-client')(server);
+const symKey = symmetric.get_super_secret_key();
 
 socket.on('connect', () => {
-  // socket.emit('no_encryption', {});
+  console.log('Sending event for no encryption response');
+  socket.emit('no_encryption', {});
 
-  // receiveing a response 
+  // receiveing a response
   socket.on('no_encryption_response', data => {
-    console.log('unencryped response: ', data);
-    console.log('\nDoing asymetric encryption now.');
-    // socket.emit('asymetric', { message: asymetric.encrypt('lets test asymetric now', null) });
+    console.log('unencryped response: ', data.text);
+    console.log('\nDoing symmetric encryption now.');
+    socket.emit('symmetric', {
+      message: symmetric.xorWithKey('lets test symmetric now', symKey),
+    });
   });
 
-  socket.on('asymetric_response', data => {
+  socket.on('symmetric_response', data => {
     const respText = data.text;
-    console.log('encypted data: ', respText);
-    console.log('decrypted data: ', asymetric.decrypt(respText, null));
+    const decryptedResponse = symmetric.xorWithKey(respText, symKey);
+    console.log(`encrypted data: ${respText}`);
+    console.log(`decrypted data: ${decryptedResponse}`);
   });
 });
