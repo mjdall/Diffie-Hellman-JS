@@ -10,7 +10,7 @@ module.exports = {
     }
     return resultantString;
   },
-  get_super_secret_key() {
+  getSuperSecretKey() {
     const fs = require("fs");
     // totally secure absolute address
     return fs.readFileSync("../super_secret_key", "utf8");
