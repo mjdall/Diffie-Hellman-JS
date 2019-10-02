@@ -6,6 +6,7 @@ const hellman = require('../hellman');
 const yargs = require('yargs');
 const io = require('socket.io-client');
 const prompts = require('prompts');
+const colours = require('colors');
 
 // checking command line args
 const options = yargs
@@ -32,8 +33,10 @@ if (server.substring(0, 7) !== 'http://') {
 
 console.log('connecting to: ' + server);
 const socket = io(server);
-const currentChannel = 'plain-text';
+let currentChannel = 'plain-text';
+let verbose = false;
 let runProgram = true;
+let userInputEnabled = false;
 
 const symmetricKey = symmetric.getSuperSecretKey();
 let encryptionMethods = {
@@ -62,26 +65,43 @@ socket.on('connect', () => {
       symmetric.xorWithKey(input, diffieHellmanKey);
 
     setUpSocketChannels(socket);
+    console.log('if you get stuck try ":h"');
+    userInputEnabled = true;
     allowUserInput(socket);
   });
 });
 
 function allowUserInput(socket) {
-  console.log('initialised conversation');
-  console.log('if you get stuck try ":h"');
-
-  while (runProgram) {
-    (async () => {
-      const input = await prompts({
-        type: 'string',
-        name: 'message',
-        message: 'Enter Message:',
-      });
-      handleUserInput(socket, input);
-    })();
-  }
-  process.exit(0);
+  (async () => {
+    if (!userInputEnabled) {
+      setTimeout(() => allowUserInput(socket), 200);
+      return;
+    }
+    const input = await prompts({
+      type: 'text',
+      name: 'message',
+      message: 'Enter Message:',
+    });
+    userInputEnabled = false;
+    handleUserInput(socket, input.message);
+    if (!runProgram) {
+      console.log('exiting...'.red);
+      process.exit(0);
+    }
+    allowUserInput(socket);
+  })();
 }
+
+const messagePrint = (message, switchInput) => {
+  if (userInputEnabled) {
+    setTimeout(() => messagePrint(message, switchInput), 200);
+    return;
+  }
+  console.log(message.green);
+  if (switchInput) {
+    userInputEnabled = true;
+  }
+};
 
 function handleUserInput(socket, input) {
   if (checkForCommands(input)) {
@@ -101,10 +121,10 @@ function handleUserInput(socket, input) {
 
 const changeChannel = newChannel => {
   if (newChannel === currentChannel) {
-    console.log(`already using ${currentChannel}`);
+    messagePrint(`already using ${currentChannel}`, true);
     return;
   }
-  console.log(`switching to ${newChannel}`);
+  messagePrint(`switching to ${newChannel}`, true);
   currentChannel = newChannel;
 };
 
@@ -116,7 +136,7 @@ function checkForCommands(input) {
   }
   const commandMap = {
     ':h': () => {
-      console.log(commands.getHelpMessage());
+      messagePrint(commands.getHelpMessage(), true);
     },
     ':v': () => {
       verbose = !verbose;
@@ -129,6 +149,7 @@ function checkForCommands(input) {
     return false;
   }
   commandMap[input]();
+  userInputEnabled = true;
   return true;
 }
 
@@ -136,24 +157,30 @@ function checkForCommands(input) {
 function setUpSocketChannels(socket) {
   // receiveing a response
   socket.on('plain-text', data => {
-    console.log(`server: ${data.text}`);
+    messagePrint(`server: ${data.text}`, true);
   });
 
   socket.on('symmetric-encryption', data => {
     const response = data.text;
     if (verbose) {
-      console.log(`received symmetrically encrypted response:\n${response}`);
+      messagePrint(
+        `received symmetrically encrypted response:\n${response}`,
+        false,
+      );
     }
     const decrypted = encryptionMethods['symmetric-encryption'](response);
-    console.log(`server: ${decrypted}`);
+    messagePrint(`server: ${decrypted}`, true);
   });
 
   socket.on('diffie-hellman', data => {
     const response = data.text;
     if (verbose) {
-      console.log(`received diffie-hellman encrypted response:\n${response}`);
+      messagePrint(
+        `received diffie-hellman encrypted response:\n${response}`,
+        false,
+      );
     }
     const decrypted = encryptionMethods['diffie-hellman'](response);
-    console.log(`server: ${decrypted}`);
+    messagePrint(`server: ${decrypted}`, true);
   });
 }
