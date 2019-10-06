@@ -31,24 +31,28 @@ io.on('connection', socket => {
   );
 
   const prime = hellman.getPrime();
-  console.log(prime);
-  const coPrime = hellman.getPrimitiveRoot(prime);
-  const partialKey = hellman.generatePartialKey(prime, coPrime);
-  // console.log(prime);
+  const primRootModP = hellman.getPrimitiveRoot(prime);
+  const secretInt = hellman.getSecretInt(prime);
+  const partialKey = hellman.generatePartialKey(prime, primRootModP, secretInt);
+
   // send the client our computed partial key
   socket.emit('init-shared-key', {
     P: prime,
-    G: coPrime,
+    G: primRootModP,
     A: partialKey,
   });
 
   // wait for the clients reply before we construct our key
   socket.on('partial-key', data => {
     const clientPartial = data.B;
-    const clientDHKey = hellman.computeKey(clientPartial, prime);
-    console.log('initialised key, enabling channels');
+    const computedDHKey = hellman.generatePartialKey(
+      prime,
+      clientPartial,
+      secretInt,
+    );
+    console.log(`initialised key: ${computedDHKey}, enabling channels`);
 
-    enableChannels(socket, clientDHKey);
+    enableChannels(socket, computedDHKey);
   });
 });
 

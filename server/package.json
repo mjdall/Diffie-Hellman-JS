@@ -18,6 +18,7 @@
   },
   "homepage": "https://github.com/mjdall/Diffie-Hellman-JS#readme",
   "dependencies": {
+    "node-fetch": "^2.6.0",
     "socket.io": "^2.3.0",
     "yargs": "^14.0.0"
   },
@@ -26,5 +27,6 @@
     "tabWidth": 2,
     "semi": true,
     "singleQuote": true
-  }
+  },
+  "proxy": "http://localhost:5000"
 }

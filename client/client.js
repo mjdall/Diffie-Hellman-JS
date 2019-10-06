@@ -54,13 +54,17 @@ socket.on('connect', () => {
     // prime root modulo P
     const prmP = data.G;
     const serverPartialKey = data.A;
-
-    const selfPartialKey = hellman.generatePartialKey(primeP, prmP);
-
+    const secretInt = hellman.getSecretInt(prmP);
+    const selfPartialKey = hellman.generatePartialKey(primeP, prmP, secretInt);
     // share our partial key with the server
     socket.emit('partial-key', { B: selfPartialKey });
 
-    const diffieHellmanKey = hellman.computeKey(serverPartialKey, primeP);
+    const diffieHellmanKey = hellman.generatePartialKey(
+      primeP,
+      serverPartialKey,
+      secretInt,
+    );
+    console.log(`computed key: ${diffieHellmanKey}`);
     encryptionMethods['diffie-hellman'] = input =>
       symmetric.xorWithKey(input, diffieHellmanKey);
 
