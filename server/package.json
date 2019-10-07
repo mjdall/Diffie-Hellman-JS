@@ -4,7 +4,7 @@
   "description": "Diffie-Hellman Key Exchange Server",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js -p 3361 -m hi there",
+    "start": "node server.js -p 3361",
     "format": "prettier --write ./**/*.{js,jsx}"
   },
   "repository": {

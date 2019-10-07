@@ -1,5 +1,5 @@
-const symmetric = require('../symmetric');
-const hellman = require('../hellman');
+const symmetric = require('../utility/symmetric');
+const hellman = require('../utility/hellman');
 const yargs = require('yargs');
 
 // cmd line args
@@ -9,12 +9,6 @@ const options = yargs
     alias: 'port',
     describe: 'Port to connect to of the Diffie-Hellman server',
     type: 'int',
-    demandOption: true,
-  })
-  .option('m', {
-    alias: 'message',
-    describe: 'the message for the server to output with',
-    type: 'string',
     demandOption: true,
   }).argv;
 

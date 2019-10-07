@@ -1,5 +1,5 @@
-const symmetric = require('../symmetric');
-const hellman = require('../hellman');
+const symmetric = require('../utility/symmetric');
+const hellman = require('../utility/hellman');
 const yargs = require('yargs');
 const io = require('socket.io-client');
 const prompts = require('prompts');
