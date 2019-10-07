@@ -1,25 +1,28 @@
+// pretty much a normal random operation
+// javascript returns a float between 0..1
 getRandomInt = (lowerBound, upperBound) =>
   Math.round(Math.random() * (upperBound - lowerBound) + lowerBound);
 
 // contains 10000 primes lol
 const prime = require("./prime.js");
 
+// computes the gcd of a and b.
 const gcd = (a, b) => {
   if (b == 0) return a;
   return gcd(b, a % b);
 };
 
+// gets the number of primitive roots of a prime
 const getNumPrimRoots = p => {
   let result = 1;
   for (let i = 1; i < p; i += 2) {
-    if (gcd(i, p) == 1) {
-      result += 1;
-    }
+    if (gcd(i, p) == 1) result += 1;
   }
   return result;
 };
 
 // found here: https://rosettacode.org/wiki/Miller%E2%80%93Rabin_primality_test#JavaScript
+// it's just the miller rabin primality test
 function probablyPrime(n, k) {
   if (n === 2 || n === 3) return true;
   if (n % 2 === 0 || n < 2) return false;
@@ -50,6 +53,10 @@ function probablyPrime(n, k) {
   return true;
 }
 
+// computes x^y % p
+// if x and y is large, then x^y will overflow
+// hence this mods p every every iteration and uses bit manipulation
+// to ensure we won't overflow
 const pow = (x, y, p) => {
   let result = 1;
   x = x % p;
@@ -62,6 +69,7 @@ const pow = (x, y, p) => {
   return result;
 };
 
+// get's the set of prime factors for a prime p
 const findPrimeFactors = p => {
   let s = new Set();
   while (p % 2 === 0) {
@@ -116,10 +124,7 @@ module.exports = {
   getSecretInt(P) {
     return getRandomInt(1, P);
   },
-  generatePartialKey(P, G, N) {
+  computeKey(P, G, N) {
     return pow(G, N, P);
-  },
-  computeKey(clientPartialKey, P) {
-    return clientPartialKey % P;
   }
 };

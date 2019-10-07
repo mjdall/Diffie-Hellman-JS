@@ -1,12 +1,9 @@
-#!/usr/bin/env node
-
 const symmetric = require('../symmetric');
-const commands = require('../commands');
 const hellman = require('../hellman');
 const yargs = require('yargs');
 const io = require('socket.io-client');
 const prompts = require('prompts');
-const colours = require('colors');
+require('colors');
 
 // checking command line args
 const options = yargs
@@ -33,10 +30,18 @@ if (server.substring(0, 7) !== 'http://') {
 
 console.log('connecting to: ' + server);
 const socket = io(server);
+
+// communication channel to send messages to
 let currentChannel = 'plain-text';
+
+// flag for verbose mode
 let verbose = false;
-let runProgram = true;
+
+// flag for whether the user can type - used to sync message prints
 let userInputEnabled = false;
+
+// probably don't need this - stops us making more connections
+let programStarted = false;
 
 const symmetricKey = symmetric.getSuperSecretKey();
 let encryptionMethods = {
@@ -47,36 +52,49 @@ let encryptionMethods = {
 
 socket.on('connect', () => {
   console.log('\ninitialising a share key with the server');
+  // probably need a print statement here
+  if (programStarted) return;
 
   socket.on('init-shared-key', data => {
-    console.log(data);
-    const primeP = data.P;
-    // prime root modulo P
-    const prmP = data.G;
+    const serverPrime = data.P;
+    const serverPRMP = data.G;
     const serverPartialKey = data.A;
-    const secretInt = hellman.getSecretInt(prmP);
-    const selfPartialKey = hellman.generatePartialKey(primeP, prmP, secretInt);
+
+    // our private int we use
+    const secretInt = hellman.getSecretInt(serverPRMP);
+
+    // compute our partial key to share with the server
+    const selfPartialKey = hellman.computeKey(serverPrime, serverPRMP, secretInt);
+
     // share our partial key with the server
     socket.emit('partial-key', { B: selfPartialKey });
 
-    const diffieHellmanKey = hellman.generatePartialKey(
-      primeP,
+    // create the full key
+    const diffieHellmanKey = hellman.computeKey(
+      serverPrime,
       serverPartialKey,
       secretInt,
     );
+
     console.log(`computed key: ${diffieHellmanKey}`);
+
+    // set up our encryption method
     encryptionMethods['diffie-hellman'] = input =>
       symmetric.xorWithKey(input, diffieHellmanKey);
 
     setUpSocketChannels(socket);
     console.log('if you get stuck try ":h"');
     userInputEnabled = true;
+    programStarted = true;
     allowUserInput(socket);
   });
 });
 
 function allowUserInput(socket) {
+  // run it asynchronously
   (async () => {
+    // we're still printing messages, wait 1/5s and then
+    // call this method again
     if (!userInputEnabled) {
       setTimeout(() => allowUserInput(socket), 200);
       return;
@@ -88,20 +106,19 @@ function allowUserInput(socket) {
     });
     userInputEnabled = false;
     handleUserInput(socket, input.message);
-    if (!runProgram) {
-      console.log('exiting...'.red);
-      process.exit(0);
-    }
+    // user can type again now
     allowUserInput(socket);
   })();
 }
 
-const messagePrint = (message, switchInput) => {
+const messagePrint = (message, switchInput, colour) => {
+  // default the colour to green
+  if (colour === undefined) colour = 'green';
   if (userInputEnabled) {
     setTimeout(() => messagePrint(message, switchInput), 200);
     return;
   }
-  console.log(message.green);
+  console.log(message[colour]);
   if (switchInput) {
     userInputEnabled = true;
   }
@@ -120,33 +137,54 @@ function handleUserInput(socket, input) {
   }
   // encrypt the message and emit it
   const encryptedInput = encryptionMethod(input);
+  if (verbose) {
+    messagePrint(`${currentChannel} encrypted message: ${encryptedInput}`, false, 'yellow');
+  }
   socket.emit(currentChannel, { message: encryptedInput });
 }
 
 const changeChannel = newChannel => {
   if (newChannel === currentChannel) {
-    messagePrint(`already using ${currentChannel}`, true);
+    messagePrint(`already using ${currentChannel}`, true, 'red');
     return;
   }
-  messagePrint(`switching to ${newChannel}`, true);
+  messagePrint(`switched to ${newChannel}`, true, 'cyan');
   currentChannel = newChannel;
 };
 
+// the commands we use
 function checkForCommands(input) {
-  const changingChannel = commands.checkUserChannelChange(input);
-  if (changingChannel !== undefined) {
-    changeChannel(changingChannel);
+  const flagMap = {
+    ':d': 'diffie-hellman',
+    ':s': 'symmetric-encryption',
+    ':p': 'plain-text',
+  };
+
+  const helpMessage =
+    'Commands:' +
+    '\n\t:d - enable diffie hellman encryption with the server' +
+    '\n\t:s - enable symmetrix encryption with the server' +
+    '\n\t:p - switch to plain-text mode' +
+    '\n\t:v - enable verbose mode' +
+    '\n\t:h - command help (this message)' +
+    '\n\t:x - exit the program';
+
+  if (input in flagMap) {
+    changeChannel(flagMap[input]);
     return true;
   }
   const commandMap = {
     ':h': () => {
-      messagePrint(commands.getHelpMessage(), true);
+      messagePrint(helpMessage, true, 'yellow');
     },
     ':v': () => {
       verbose = !verbose;
+      let msg = verbose ? 'switched to verbose mode' : 'disabled verbose mode'
+      messagePrint(msg, false, 'cyan');
     },
     ':x': () => {
-      runProgram = false;
+      console.log('exiting...'.red);
+      process.exit(0);
     },
   };
   if (!(input in commandMap)) {
@@ -159,29 +197,33 @@ function checkForCommands(input) {
 
 // setup all of our socket channels once we've inited this conversation
 function setUpSocketChannels(socket) {
-  // receiveing a response
+  // no encryption channel
   socket.on('plain-text', data => {
     messagePrint(`server: ${data.text}`, true);
   });
 
+  // symmetric encryption channel
   socket.on('symmetric-encryption', data => {
     const response = data.text;
     if (verbose) {
       messagePrint(
         `received symmetrically encrypted response:\n${response}`,
         false,
+        'yellow'
       );
     }
     const decrypted = encryptionMethods['symmetric-encryption'](response);
     messagePrint(`server: ${decrypted}`, true);
   });
 
+  // dh encryption channel
   socket.on('diffie-hellman', data => {
     const response = data.text;
     if (verbose) {
       messagePrint(
         `received diffie-hellman encrypted response:\n${response}`,
         false,
+        'yellow'
       );
     }
     const decrypted = encryptionMethods['diffie-hellman'](response);
